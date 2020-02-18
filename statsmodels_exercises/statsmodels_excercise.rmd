@@ -1,0 +1,242 @@
+---
+title: "多元线性回归分析"
+author: "金林"
+date: "2020-01"
+output:
+  bookdown::html_document2:
+    fig_caption: true
+    highlight: haddock
+    keep_md: true
+    md_extensions: +east_asian_line_breaks
+    number_sections: true
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    - -M
+    - eqnPrefix=
+    seq_numbering: false
+    toc: true
+  bookdown::pdf_document2:
+    keep_tex: true
+    latex_engine: xelatex
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    toc: false
+  slidy_presentation:
+    highlight: haddock
+  bookdown::word_document2:
+    fig_caption: true
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    reference_docx: ../style/word-styles-02.docx
+  ioslides_presentation:
+    highlight: haddock
+    slide_level: 3
+  beamer_presentation:
+    keep_tex: true
+    latex_engine: xelatex
+    toc: true
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    slide_level: 3
+    template: ../style/beamer-template.tex
+csl: ../style/chinese-gb7714-2005-numeric.csl
+css: ../style/markdown.css
+bibliography: Bibfile.bib
+eqnPrefixTemplate: ($$i$$)
+institute: 中南财经政法大学统计与数学学院
+link-citations: true
+linkReferences: true
+chapters: true
+tableEqns: false
+autoEqnLabels: false
+---
+
+
+```{r setup, echo=F, purl=F}
+knitr::opts_knit$set(root.dir = getwd())
+knitr::opts_chunk$set(echo = TRUE, results = 'hide')
+knitr::opts_chunk$set(warning = FALSE, message=FALSE)
+knitr::opts_chunk$set(out.height="0.5\\textwidth", fig.width=5, fig.height=3, fig.align="center")
+```
+
+```{r prepare, echo=F, purl=F}
+rm(list=ls())
+options(digits=4)
+options(scipen=100)
+graphics.off()
+Sys.setlocale("LC_ALL", "Chinese")
+```
+
+### 构建数据集
+
+从R中提取数据，建立数据框，提取GDP变量形成Y向量，提取Labor,Kapital,Technology,Energy四个变量加上截距向量构成设计矩阵X。
+```{python}
+import pandas as pd
+import statsmodels.api as sm
+GDP=pd.read_excel('GDP.xls')
+GDP.head()
+Y=GDP.GDP
+X=GDP[['Labor','Kapital','Technology','Energy']]
+X=sm.add_constant(X)
+X.head()
+import os
+os.getcwd()
+```
+
+### 初步查看数据集信息
+```{python}
+print(GDP.describe())
+print(GDP.info())
+GDP.isnull().sum()#存在空值
+GDP[GDP.isnull().sum(axis=1)>0].index#存在空值的行
+GDP=GDP.dropna(how='any')#删掉存在空值的行
+Y=GDP.GDP
+X=GDP[['Labor','Kapital','Technology','Energy']]
+X=sm.add_constant(X)
+GDP.head()
+```
+数据中存在空值，故先去掉含空值的行，再利用所得数据进行模型拟合。
+
+### 建立线性回归模型
+```{python}
+import statsmodels.formula.api as smf
+results = smf.ols('Y~X', data=GDP.iloc[:,[1,3,4,6,7]]).fit()#自带常数
+results=sm.OLS(Y,X).fit()
+print(results.summary())
+help(smf.ols)
+```
+构建模型有两种方法，一种是'sm.OLS(Y,X)',分别输入因变量和自变量即可；另一种是'smf.ols('Y~X', data=GDP.iloc[:,[1,3,4,6,7]])',利用formula指定数据以及各个变量。
+
+根据模型拟合结果可判断截距项const和自变量labor对GDP的影响不显著。t检验未通过。
+
+### 参数估计(估计回归模型的系数矩阵、因变量估计值、回归误差向量)
+
+```{python}
+#dir(results)
+results.params#系数矩阵
+results.resid#残差(回归误差)，对象是序列
+results.fittedvalues#因变量估计值
+
+XX=(np.dot((X.T),X))
+beta=np.dot(np.matrix(XX).I,np.dot((X.T),Y))
+resid=(np.matrix(Y)).T-np.dot(X,beta.T)
+fitted=np.dot(X,beta.T)
+#涉及矩阵与数组的转换以及维度的变化
+
+fitted=(np.vstack([results.fittedvalues.values,fitted.reshape((58,))])).T
+fitted=pd.DataFrame(fitted,columns=['method','self'])
+
+resid=(np.vstack([results.resid.values,np.array(resid).reshape((58,))])).T
+resid=pd.DataFrame(resid,columns=['method','self'])
+```
+
+beta是根据公式计算得到的结果，与results.params结果并保持一致。
+fitted储存了运用results.fittedvalues方法和利用公式计算的结果，二者保持相同。
+resid储存了运用results.resid方法和利用公式计算的结果，可以看出两者是相同的。
+
+### 多元线性回归函数的拟合优度
+```{python}
+#dir(results)
+results.rsquared
+results.rsquared_adj
+
+ESS=results.ssr#残差平方和
+mean=np.mean(Y)
+sum(results.resid**2)
+TSS=sum((Y-mean)**2)#总平方和
+RSS=sum((results.fittedvalues-mean)**2)#回归平方和
+Rsquare=RSS/TSS
+n=len(Y)
+MST = TSS/(n-1)
+MSR = RSS/(4) #回归均方误差
+MSE = ESS/(n-4-1) #残差均方误差
+Rsquare_adj=1-MSE/MST #调整的决定系数
+```
+多元线性回归函数的总离差平方和TSS为486137135977.6353, 回归平方和RSS为484467486442.84406, 残差平方和ESS为
+1669649534.7925723, 总均方误差为8528721683.818164, 回归均方误差为121116871610.71101, 残差均方误差为
+31502821.411180608, 样本决定系数为0.9965654762592147, 调整的决定系数为0.9963062669202875，这意味着多元线性回归
+方程对原始数据的拟合程度较高。并且用两种方法计算得到的结果是一样的。
+
+### 线性关系显著性检验：F检验（右侧检验）
+
+```{python}
+p=4
+F=(RSS/p)/(ESS/(n-p-1))
+results.fvalue
+results.f_pvalue
+
+from scipy.stats import f
+f.ppf(0.95,4,53)#计算分位数
+print(1-f.cdf(F,4,53))#计算p值
+```
+根据公式$frac{RSS/p}{ESS/(n-p-1)}~F(p,n-p-1)$,
+计算F值为3844.6356924629504,与results.fvalue的计算结果
+3844.635692462939 相差无几。
+
+p值的计算需要用到scipy的stats模块。results.f_pvalue计算的是
+双侧p值。
+
+### 回归系数显著性检验：t检验（双侧检验）
+
+```{python}
+from scipy.stats import t
+se=np.diag(np.sqrt(results.cov_params()))#se是数组
+t_value=np.array(beta).reshape((5,))/se
+print(t_value)
+
+results.tvalues
+t_value=(np.vstack([results.tvalues.values,t_value])).T
+t_value=pd.DataFrame(t_value,columns=['method','self'])
+
+t.ppf(0.975,53)#计算分位数
+t.ppf(0.025,53)
+
+p=[(1-t.cdf(np.abs(i),53))*2 for i in results.tvalues.values.tolist()]
+```
+通过results.cov_params()可以获得所估计参数的方差协方差矩阵。
+利用scipy.stats.t中的t.cdf()可以计算p值，与summary(results)
+的结果一致。
+
+### 回归系数的区间估计
+
+```{python}
+upper=np.array(beta).reshape((5,))+t.ppf(0.975,53)*se
+lower=np.array(beta).reshape((5,))-t.ppf(0.975,53)*se
+intervals=np.vstack([upper,lower])
+intervals=pd.DataFrame(intervals.T,columns=['upper','lower'])
+intervals=intervals[['lower','upper']]
+print(results.summary2())
+```
+通过比较，发现print(results.summary2())的结果与intervals的结果是一致的。
+
+### 回归模型的预测值
+#### 点预测
+```{python}
+new_exog=np.array([[1,80000,160000,3000,300000],[1,75000,150000,2800,250000]])
+Yhat_new=results.predict(exog=new_exog)
+```
+在预测时需要输入对设计矩阵赋予新的值。
+
+#### 区间预测
+# 个别值区间预测
+```{python}
+new_exog_xx_I=np.dot(np.matrix(new_exog),np.matrix(XX).I)
+new_exog_xx_I_new_exog=np.dot(new_exog_xx_I,np.matrix(new_exog.T))
+dig_value_lower=Yhat_new-t.ppf(0.975,53)*(MSE**0.5)*np.sqrt(1+np.diag(new_exog_xx_I_new_exog))
+dig_value_upper=Yhat_new+t.ppf(0.975,53)*(MSE**0.5)*np.sqrt(1+np.diag(new_exog_xx_I_new_exog))
+# 平均值区间预测 
+mean_value_lower=Yhat_new-t.ppf(0.975,53)*(MSE**0.5)*np.sqrt(np.diag(new_exog_xx_I_new_exog))
+mean_value_upper=Yhat_new+t.ppf(0.975,53)*(MSE**0.5)*np.sqrt(np.diag(new_exog_xx_I_new_exog))
+pre_value=np.vstack([dig_value_lower,dig_value_upper,mean_value_lower,mean_value_upper]).T
+# 合并为数据框
+pre_value=pd.DataFrame(pre_value,columns=['dig_value_lower','dig_value_upper','mean_value_lower','mean_value_upper'])
+pre_value
+```
