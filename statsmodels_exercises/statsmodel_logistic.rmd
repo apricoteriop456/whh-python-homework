@@ -1,0 +1,258 @@
+---
+title: "多元线性回归分析"
+author: "金林"
+date: "2020-01"
+output:
+  bookdown::html_document2:
+    fig_caption: true
+    highlight: haddock
+    keep_md: true
+    md_extensions: +east_asian_line_breaks
+    number_sections: true
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    - -M
+    - eqnPrefix=
+    seq_numbering: false
+    toc: true
+  bookdown::pdf_document2:
+    keep_tex: true
+    latex_engine: xelatex
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    toc: false
+  slidy_presentation:
+    highlight: haddock
+  bookdown::word_document2:
+    fig_caption: true
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    reference_docx: ../style/word-styles-02.docx
+  ioslides_presentation:
+    highlight: haddock
+    slide_level: 3
+  beamer_presentation:
+    keep_tex: true
+    latex_engine: xelatex
+    toc: true
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    slide_level: 3
+    template: ../style/beamer-template.tex
+csl: ../style/chinese-gb7714-2005-numeric.csl
+css: ../style/markdown.css
+bibliography: Bibfile.bib
+eqnPrefixTemplate: ($$i$$)
+institute: 中南财经政法大学统计与数学学院
+link-citations: true
+linkReferences: true
+chapters: true
+tableEqns: false
+autoEqnLabels: false
+---
+
+```{r setup, echo=F, purl=F}
+knitr::opts_knit$set(root.dir = getwd())
+knitr::opts_chunk$set(echo = TRUE, results = 'hide')
+knitr::opts_chunk$set(warning = FALSE, message=FALSE)
+knitr::opts_chunk$set(out.height="0.5\\textwidth", fig.width=5, fig.height=3, fig.align="center")
+```
+
+```{r prepare, echo=F, purl=F}
+rm(list=ls())
+options(digits=4)
+options(scipen=100)
+graphics.off()
+Sys.setlocale("LC_ALL", "Chinese")
+```
+
+# 数据选择与描述
+```{python}
+import pandas as pd
+import numpy as np
+from sklearn import linear_model
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+dat=sm.datasets.get_rdataset('Smarket',package='ISLR',site="D:/github_repo/Rdatasets")
+dat.data
+```
+
+```{python}
+print(dat.__doc__)
+```
+以前5个交易日的收益率和前一个工作日的交易额为自变量，今天的走势做因变量做Logistic回归。
+选取ISLR包的Smarket数据集，该数据包含（2001-2005）年标准普尔500指数1250个观测值，9个变量。
+9个变量分别为：年份，前5个交易日的收益率，前一个交易日的交易量（单位：billions十
+亿），今天的收益率和走势（上升或下降）。
+
+## 描述统计：
+
+### 有无异常值和空值。
+
+```{python}
+data=dat.data
+data.isnull().sum()#无空值
+print(data.groupby(data.Year).count())
+data.dtypes
+```
+从每年的数据，可以大致判断是日交易日数据。除了2001年的数据量为242以外，其余年份每年
+均有252条交易数据。另外该数据集不存在空值。
+
+### 收益率
+
+```{python}
+import matplotlib.pyplot as plt
+fig=plt.figure(figsize=(7,10))
+ax1=plt.subplot(611)
+ax1.plot(data.Lag1)
+plt.xticks([0,242,494,746,998,1250],['0','2001','2002','2003','2004','2005'])
+plt.ylabel('Lag1')
+plt.xlabel('Year')
+ax2=plt.subplot(612)
+ax2.plot(data.Lag2)
+plt.xticks([0,242,494,746,998,1250],['0','2001','2002','2003','2004','2005'])
+plt.ylabel('Lag2')
+plt.xlabel('Year')
+ax3=plt.subplot(613)
+ax3.plot(data.Lag3)
+plt.xticks([0,242,494,746,998,1250],['0','2001','2002','2003','2004','2005'])
+plt.ylabel('Lag3')
+plt.xlabel('Year')
+ax4=plt.subplot(614)
+ax4.plot(data.Lag4)
+plt.xticks([0,242,494,746,998,1250],['0','2001','2002','2003','2004','2005'])
+plt.ylabel('Lag4')
+plt.xlabel('Year')
+ax5=plt.subplot(615)
+ax5.plot(data.Lag5)
+plt.xticks([0,242,494,746,998,1250],['0','2001','2002','2003','2004','2005'])
+plt.ylabel('Lag5')
+plt.xlabel('Year')
+ax6=plt.subplot(616)
+ax6.plot(data.Today)
+plt.xticks([0,242,494,746,998,1250],['0','2001','2002','2003','2004','2005'])
+plt.ylabel('Today')
+plt.xlabel('Year')
+
+收益率的波动趋势大致相同，2002年前后收益率波动较为明显，之后波动幅度变小。
+
+```{python}
+"""
+def average(seq):
+    return float(sum(seq))/len(seq)
+print(data.iloc[:,1:8].apply(average))
+"""
+data.iloc[:,1:8].describe()
+```
+从平均水平来看,前四个交易日的收益率最小，为0.001636,前两个交易日的收益率
+最大，为0.003919。从波动水平来看，前五个交易日的收益率波动性最大，为1.14755，
+前两个交易日收益率的波动性最小，为0.136280。
+
+### 交易量
+```{python}
+fig=plt.figure()
+ax=plt.subplot(111)
+ax.plot(data.Volume)
+plt.xticks([0,242,494,746,998,1250],['0','2001','2002','2003','2004','2005'])
+plt.ylabel('Volume')
+plt.xlabel('Year')
+```
+交易量呈上升趋势的同时表现出一定的周期性。
+
+### 走势变量处理
+由于原数据集中作为因变量的'Direction'是'object'，需要将其转化为模型可处理的
+数值型。Up和Down分别被赋予数字0和1。
+```{python}
+data.Direction=pd.factorize(data.Direction)[0]
+data.dtypes
+```
+# 模型构建
+## 变量确定以及训练集测试集拆分
+```{python}
+from sklearn import model_selection
+x=data.iloc[:,1:7]
+y=data.Direction
+x_train,x_test,y_train,y_test=model_selection.train_test_split(x,y,test_size=0.25,random_state=1234)
+data_train=pd.concat([x_train,y_train],axis=1)
+data_test=pd.concat([x_test,y_test],axis=1)
+```
+## 利用训练集建模
+```{python}
+results=smf.logit('y_train~Lag1+Lag2+Lag3+Lag4+Lag5+Volume',data=data_train).fit()
+print(results.summary())
+print(results.aic)
+```
+经过4次迭代，最终得到模型的AIC=1306.8498348828252,
+很多自变量没通过验证，接下来我们基于AIC准则用逐步回归做一下变量筛选。
+#注意：smf.logit('y_train~x_train',data=data_train)则使用predict会出错
+```{python}
+results1=smf.logit('y_train~Lag1+Lag2+Lag3+Lag4+Lag5',data=data_train).fit()
+print(results1.summary())
+print(results1.aic)
+
+results2=smf.logit('y_train~Lag1+Lag2+Lag3+Lag4',data=data_train).fit()
+print(results2.summary())
+print(results2.aic)
+
+results3=smf.logit('y_train~Lag1+Lag2+Lag3',data=data_train).fit()
+print(results3.summary())
+print(results3.aic)
+
+results5=smf.logit('y_train~Lag1+Lag2',data=data_train).fit()
+print(results5.summary())
+print(results5.aic)
+
+results6=smf.logit('y_train~Lag1',data=data_train).fit()
+print(results6.summary())
+print(results6.aic)
+
+data_train['log_Volume']=np.log(data_train.Volume)
+results4=smf.logit('y_train~Lag1+Lag2+Lag3+Lag4+Lag5+log_Volume',data=data_train).fit()
+print(results4.summary())
+print(results4.aic)
+```
+经过以上几个模型的拟合，可以确定第6个模型的AIC最小，并且lag1的参数显著性通过检验。故最优模型
+是以Lag1为自变量的模型。
+
+## 模型预测
+```{python}
+y_predict=results6.predict(exog = x_test)
+print(dat.data['Direction'].value_counts())
+print(y_test.value_counts())
+```
+原始数据中，Up(0)有648条数据，Down(1)有602条数据，二者占比相差不大，故接下来以
+0.5为分界线，预测概率大于0.5认为股票收益率是下降的，预测概率小于0.5认为股票收益
+率是上升的。
+
+## 准确率计算
+```{python}
+from sklearn import metrics
+y_predict_dat=pd.Series(np.where(y_predict.values>0.5,1,0))
+y_predict_dat.value_counts()
+
+cm=metrics.confusion_matrix(y_test,y_predict_dat,labels=[0,1])
+cm=pd.DataFrame(cm,columns=['Up_pre','Down_pre'],index=['Up_real','Down_real'])
+cm
+```
+该数组就是简单的混淆矩阵。矩阵的行表示实际的股票走势状态，列表示模型预测的走势状态。
+
+```{python}
+accuracy=metrics.scorer.accuracy_score(y_test,y_predict_dat)
+accuracy_self=(y_test.values==y_predict_dat.values).sum()/len(y_test)
+sensitivity=metrics.scorer.recall_score(y_test,y_predict_dat)
+specificity=metrics.scorer.recall_score(y_test,y_predict_dat,pos_label=0)
+print('模型准确率为%.2f%%:' %(accuracy*100))
+print('正例覆盖率为%.2f%%:' %(sensitivity*100))
+print('负例覆盖率为%.2f%%:' %(specificity*100))
+```
+经计算模型的准确率只有53.35%，略超过0.5，模型准确度太低。正例覆盖率（走势下降）为16.45%，负例覆
+盖率（走势上升）为88.20%。说明模型能够识别收益率上升，但对走势下降不能做出正确预测。
