@@ -1,0 +1,397 @@
+---
+title: "多元线性回归分析"
+author: "金林"
+date: "2020-01"
+output:
+  bookdown::html_document2:
+    fig_caption: true
+    highlight: haddock
+    keep_md: true
+    md_extensions: +east_asian_line_breaks
+    number_sections: true
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    - -M
+    - eqnPrefix=
+    seq_numbering: false
+    toc: true
+  bookdown::pdf_document2:
+    keep_tex: true
+    latex_engine: xelatex
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    toc: false
+  slidy_presentation:
+    highlight: haddock
+  bookdown::word_document2:
+    fig_caption: true
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    reference_docx: ./style/word-styles-02.docx
+  ioslides_presentation:
+    highlight: haddock
+    slide_level: 3
+  beamer_presentation:
+    keep_tex: true
+    latex_engine: xelatex
+    toc: true
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    slide_level: 3
+    template: ./style/beamer-template.tex
+csl: ./style/chinese-gb7714-2005-numeric.csl
+css: ./style/markdown.css
+bibliography: Bibfile.bib
+eqnPrefixTemplate: ($$i$$)
+institute: 中南财经政法大学统计与数学学院
+link-citations: true
+linkReferences: true
+chapters: true
+tableEqns: false
+autoEqnLabels: false
+---
+
+```{r setup, echo=F, purl=F}
+knitr::opts_knit$set(root.dir = getwd())
+knitr::opts_chunk$set(echo = TRUE, results = 'hide')
+knitr::opts_chunk$set(warning = FALSE, message=FALSE)
+knitr::opts_chunk$set(out.height="0.5\\textwidth", fig.width=5, fig.height=3, fig.align="center")
+```
+
+```{r prepare, echo=F, purl=F}
+rm(list=ls())
+options(digits=4)
+options(scipen=100)
+graphics.off()
+Sys.setlocale("LC_ALL", "Chinese")
+```
+
+# 创建一个向量
+python没有可以之间创建向量的函数，可利用numpy创建一维数组。
+```{python}
+import numpy as np
+x=[1,2,3,4]
+x=np.array(x)
+x_m=np.matrix(x)
+```
+利用numpy的matrix可以创建一个向量，向其传入一维数组或列表。
+
+# 创建一个矩阵
+python创建矩阵可以通过numpy的matrix方法，向其传入一个二维数组。矩阵的形状通过传入的数组的形状来控制。
+```{python}
+data=np.array([[1,2,3],[4,5,6]])
+data=np.matrix(data)
+type(data)
+data.shape
+```
+## 矩阵元素的获取，注意与pandas的dataframe对象的元素获取混淆
+print('获取第2行第3列数字:',data[1,2])
+print('获取第二行:',data[1,:])
+print('矩阵第2行的维度是:',data[1,:].ndim)
+print('获取第二列:',data[:,1])
+```
+## 数组元素的获取
+从二维矩阵中获取某一列的数字，维度没有改变,但是从二维数组中获取某一列某一行的数字，维度发生改变，变成一维。
+```{python}
+data=np.array([[1,3],[4,6]])
+print('数组第2行的形状是:',data[1,:].shape)
+print('数组第2行的维度是:',data[1,:].ndim)
+data[1,1]
+```
+## 矩阵与数组形状的改变
+```{python}
+X=np.random.random((3,3))#获得3*3的数组
+X_m=np.matrix(X)
+X.reshape(-1).shape#(9,)
+X_m.reshape(-1).shape#(1,9)
+```
+
+# 矩阵与数组的转置
+矩阵的转置与数组的转置相似,但对于一维数组，其转置就是其自身。
+行向量的转置得到列向量。
+```{python}
+data
+data.T
+print('X的形状是:',(x).shape)
+print('X的转置的形状是:',(x.T).shape)
+X_m.reshape(-1).T
+X_m.reshape(-1).T.shape#(9,1)
+```
+
+# 矩阵、数组的相加减
+```{python}
+A=B=np.arange(1,13).reshape((3,4))
+A_m=B_m=np.matrix(A)
+print(A+B)
+print(A_m+B_m)
+print(A-B)
+print(A_m-B_m)
+A+2
+A_m+2
+```
+对应元素进行相加减
+
+# 数与矩阵、数组相乘
+```{python}
+A=B=np.arange(1,13).reshape((3,4))
+c=2
+print(A*c)
+print(A_m*2)
+```
+每个元素进行与c相乘
+
+# 矩阵、数组相乘
+两个数组进行m*n数组与n*k数组的乘法运算需要用np.dot()、np.matmul()、或者'@';两个矩阵进行m*n矩阵与n*k矩阵的乘法用符号'*'进行。当计算对象
+是数组时,'*'表示两个形状相同的数组对应元素相乘。
+
+## 数组相乘
+```{python}
+A=np.arange(1,13).reshape((3,4))
+B=np.arange(0,12).reshape((3,4))
+A*B
+```
+
+数组的'+-*/'运算相当于函数'np.add','np.subtract','np.multiply','np.divide',
+两种方法在使用时前提是必须保证操作的数组有相同的形状（除了数组与标量之间的运算:每个元素与标量进行运算）。
+另外函数只能接受两个对象的运算,如果需要多个对象的运算，就得使用嵌套方法。运算时是对应元素的计算，所以要求形状相同。
+
+```{python}
+A=np.arange(1,13).reshape((3,4))
+B=np.arange(0,12).reshape((3,4))
+C=np.arange(1,13).reshape((4,3))
+np.matmul(A,C)
+np.dot(A,C)#对2维数组进行的点积计算即为矩阵运算
+A@C
+np.dot(C,A)
+```
+
+一维数组的np.dot即为向量的数量积(scaler product)
+```{python}
+one_dim_vec_one = np.array([1, 2, 3])
+one_dim_vec_two = np.array([4, 5, 6])
+one_result_res = np.dot(one_dim_vec_one, one_dim_vec_two)
+print('one_result_res: %s' %(one_result_res))
+```
+
+二维数组与一维数组的np.dot, 它是A的最后一维和B的倒数第二维积的和：dot(A, B)[i,j,k,m] = sum(a[i,j,:] * b[k,:,m])
+```{python}
+A=np.array([1,2,3,4]).reshape((2,2))
+B=np.array([5,6])
+A*B
+A@B
+B*A
+B@A
+print(A)
+print(B)
+np.dot(A,B)
+sum(A[0,:]*B)#表示第一行与B的乘积的和
+sum(A[1,:]*B)#表示第二行与B的乘积的和
+np.dot(B,A)
+sum(B*A[:,0])#表示第一行与A的第一列的乘积的和
+sum(B*A[:,1])#表示第一行与A的第二列的乘积的和
+```
+
+## 矩阵相乘
+```{python}
+A_m=np.matrix(A)
+B_m=np.matrix(B)
+C_m=np.matrix(C)
+A_m*C_m
+```
+矩阵相乘用'*'符号就可以，满足m*n矩阵与n*k矩阵相乘得到m*k矩阵。
+
+# 数组内积
+一维数组的向量的普通内积（无复共轭），在较高维度上，最后一个轴上的和积。out.shape = a.shape[:-1] + b.shape[:-1]
+## 一维数组
+```{python}
+A=np.array([1,2])
+B=np.array([3,4])
+np.inner(A,B)
+```
+## 二维以上数组
+np.inner(A, B) = np.tensordot(a, b, axes=(-1,-1))
+```{python}
+A=np.array([1,2,3,4]).reshape((2,2))
+B=np.array([3,4,5,6]).reshape((2,2))
+np.inner(A,B)
+sum(A[0,:]*B[0,:])#表示A第一行与B第一行的乘积之和
+sum(A[0,:]*B[1,:])#表示A第一行与B第二行的乘积之和
+sum(A[1,:]*B[0,:])#表示A第二行与B第一行的乘积之和
+sum(A[1,:]*B[1,:])#表示A第二行与B第二行的乘积之和
+A.shape[:-1] + B.shape[:-1]
+```
+
+# 矩阵(数组)对角元素相关计算
+
+## 主对角元素与一维数组之间的换算
+```{python}
+A=np.arange(1,17).reshape((4,4))
+A_m=np.matrix(A)
+np.diag(A_m)
+np.diag(A)
+np.diag([ 1,  6, 11, 16])
+```
+## 建立指定大小的单位矩阵
+```{python}
+np.eye(5)
+```
+
+# 矩阵(数组)求逆
+```{python}
+A=np.eye(4)
+B=np.linalg.inv(A)
+np.allclose(np.dot(A,B),np.eye(4))
+```
+## 计算Ax=B的线性方程组的解
+```{python}
+np.linalg.solve(A,np.eye(4))
+np.linalg.solve(A,np.array([1,2,3,4]))
+```
+
+# 矩阵的特征值与特征分解
+
+矩阵A的谱分解为A=UΛt(U),其中Λ是由A的特征值组成的对角矩阵，U的列为A的特征值对应的特征向量，在python中可以用np.linalg.eig得到U和Λ.特征和特征根储存在元组中。
+
+```{python}
+A=np.diag([1,1,1,1])+1
+print(A)
+m,e=np.linalg.eig(A)
+print('特征值是: \n',m)
+print('特征向量构成的矩阵是: \n',e)
+np.matmul(e,np.matmul(np.diag(m),e.T))
+np.matrix(e)*np.diag(m)*np.matrix(e.T)
+```
+# 矩阵的Choleskey分解
+Cholesky 分解是把一个对称正定的矩阵表示成一个下三角矩阵L和其转置的乘积的分解。
+Cholesky分解法又称平方根法，即：A=Pt(P)，其中P为下三角矩阵，在python中可以用进行np.linalg.cholesky()分解，例如:
+
+```{python}
+A=np.diag([1,1,1,1])+1
+B=np.linalg.cholesky(A)
+print(np.dot(B,B.T))
+```
+可以利用Cholesky分解求行列式的值，np.prod表示元素连乘。
+```{python}
+np.prod((np.diag(B)**2))
+np.linalg.det(A)
+```
+
+# 矩阵奇异值分解
+A为m×n矩阵，rank(A)= r, 可以分解为：$A=UDV^T$,其中(U^T)U=(V^T)V=I
+在python中可以进行奇异值分解，例如:
+```{python}
+A=np.arange(1,19).reshape((3,6))
+A
+u,d,vh=np.linalg.svd(A,full_matrices=False)
+np.allclose(np.dot(np.dot(u,np.diag(d)),vh),A)
+u.shape,d.shape,vh.shape
+np.dot(u.T,u)
+np.dot(vh,vh.T)
+```
+
+# 矩阵QR分解
+A为m×n矩阵可以进行QR分解，A=QR，其中：$Q^TQ＝I$，在python中可以用函数qr()进行QR分解，例如:
+```{python}
+A=np.arange(1,17).reshape((2,8))
+q,r=np.linalg.qr(A)
+q.shape,r.shape
+np.allclose(A, np.dot(q, r))
+np.dot(q,q.T) 
+```
+   
+# 矩阵广义逆(Moore-Penrose)
+n×m矩阵$A^+$称为m×n矩阵A的Moore-Penrose逆，如果它满足下列条件：①$A A^+ A=A$；②$A^+ A A^+= A^+$；
+③${(A A^+)}^H=A A^+$；④${(A^+ A)}^H = A^+ A$
+在python的可计算矩阵A的Moore-Penrose逆，例如
+```{python}
+np.
+```
+# 矩阵(数组)Kronecker积
+克罗内克积也称为直积或张量积，以德国数学家利奥波德·克罗内克命名。以上两个矩阵之间的乘法运算，
+对于矩阵的大小都有着一定的限定条件。在克罗内克积里面，这个条件就取消了。两个任意大小的矩阵A和B，
+假设A的大小是m*n，B的大小是h*k，则A*B的大小是mh*nk。公式为：
+$$A_(m\times n)\bigotimesB_(h\times k)=(\begin{matrix}(a_11\ B&\cdots&a_1n\ B@\vdots&\ddots&\vdots@a_m1\ B&\cdots&a_mn\ B))_(mh\times nk)$$
+
+在python中kronecker积可以用np.kron()来计算A矩阵中的每个数与B矩阵进行数乘运算。
+例如：
+```{python}
+A=np.arange(1,5).reshape((2,2))
+B=np.ones((2,2))
+print(A)
+print(B)
+print(np.kron(A,B))
+```
+
+# 矩阵的外积outer
+外积是Kronecker product的一种特殊形式，是两个一维向量之间的运算。列向量与行向量的乘法。
+如果遇到二维数组，则先把
+二维数组按行向量转换为一维数组，再进行行向量与列向量的乘法。
+```{python}
+A=np.arange(1,5).reshape((2,2))
+B=np.ones((2,2))
+print(A)
+print(B)
+print(np.outer(A,B))
+(np.matrix(A.reshape(-1)).T)*np.matrix(B.reshape(-1))
+C=np.array([1,2])
+print(np.outer(A,C))
+(np.matrix(A.reshape(-1)).T)*np.matrix(C.reshape(-1))
+```
+
+# 矩阵(数组)的维数
+```{python}
+A=np.arange(1,13).reshape((3,4))
+print(A.shape)
+print(A.ndim)
+```
+
+# 矩阵的行和、列和、行平均与列平均
+```{python}
+print('列和:',A.sum(axis=0))
+print('行和:',A.sum(axis=1))
+print('列平均:',A.mean(axis=0))
+print('行平均:',A.mean(axis=1))
+```
+
+# 取矩阵的上、下三角部分
+在python中，我们可以很方便的取到一个矩阵的上、下三角部分的元素，numpy的triu和函数tril提供了有效的方法。
+```{python}
+A=np.arange(1,17).reshape((4,4))
+print('下三角:',np.tril(A))
+print('上三角:',np.triu(A))
+np.triu(A,1)
+np.triu(A,-1)
+```
+# 向量化算子
+在python中可以通过将多维数组转换为一维数组来实现。
+```{python}
+A=np.arange(1,17).reshape((4,4))
+print(A.ravel())
+print(A.ravel(order='F'))
+print(A.flatten())
+print(A.flatten(order='F'))
+print(A.reshape(-1))
+print(A.reshape(-1,order='F'))
+```
+在默认情况下，优先按照数组的行顺序，逐个将元素降为一维度；如果按原数组的列顺序，将数组降为一维的话，需要设置
+'order=F'.需要注意的是,使用flatten方法实现的降维返回的
+是复制，不影响原数组的结果，但ravel和reshape方法返回的
+是视图，会影响到原数据的结果。
+```{python}
+A.flatten()[0]=0
+print('flatten方法: \n',A)
+
+A.ravel()[15]=0
+print('ravel方法: \n',A)
+
+A.reshape(-1)[10]=30
+print('reshape方法: \n',A)
+```
