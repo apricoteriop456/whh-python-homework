@@ -206,7 +206,7 @@ B_m=np.matrix(B)
 C_m=np.matrix(C)
 A_m*C_m
 ```
-矩阵相乘用'*'符号就可以，满足m*n矩阵与n*k矩阵相乘得到m*k矩阵。
+矩阵相乘用'\*'符号就可以，满足m*n矩阵与n*k矩阵相乘得到m*k矩阵。
 
 # 数组内积
 一维数组的向量的普通内积（无复共轭），在较高维度上，最后一个轴上的和积。out.shape = a.shape[:-1] + b.shape[:-1]
@@ -312,13 +312,26 @@ n×m矩阵$A^+$称为m×n矩阵A的Moore-Penrose逆，如果它满足下列条�
 ③${(A A^+)}^H=A A^+$；④${(A^+ A)}^H = A^+ A$
 在python的可计算矩阵A的Moore-Penrose逆，例如
 ```{python}
-np.
+A=np.arange(1,17).reshape((4,4))
+B=np.linalg.pinv(A)
 ```
+验证性质一：
+np.allclose(np.dot(np.dot(A,B),A),A)
+验证性质二：
+np.allclose(np.dot(np.dot(B,A),B),B)
+验证性质三：
+np.allclose((np.dot(A,B).T),np.dot(A,B))
+验证性质四：
+np.allclose((np.dot(B,A).T),np.dot(B,A))
+```{python}
+A=np.arange(1,17).reshape((4,4))
+np.linalg.pinv(A)
+```
+
 # 矩阵(数组)Kronecker积
 克罗内克积也称为直积或张量积，以德国数学家利奥波德·克罗内克命名。以上两个矩阵之间的乘法运算，
 对于矩阵的大小都有着一定的限定条件。在克罗内克积里面，这个条件就取消了。两个任意大小的矩阵A和B，
-假设A的大小是m*n，B的大小是h*k，则A*B的大小是mh*nk。公式为：
-$$A_(m\times n)\bigotimesB_(h\times k)=(\begin{matrix}(a_11\ B&\cdots&a_1n\ B@\vdots&\ddots&\vdots@a_m1\ B&\cdots&a_mn\ B))_(mh\times nk)$$
+假设A的大小是m\*n，B的大小是h\*k，则A*B的大小是mh\*nk.
 
 在python中kronecker积可以用np.kron()来计算A矩阵中的每个数与B矩阵进行数乘运算。
 例如：
