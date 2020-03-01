@@ -1,0 +1,525 @@
+---
+title: "多元线性回归分析"
+author: "金林"
+date: "2020-01"
+output:
+  bookdown::html_document2:
+    fig_caption: true
+    highlight: haddock
+    keep_md: true
+    md_extensions: +east_asian_line_breaks
+    number_sections: true
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    - -M
+    - eqnPrefix=
+    seq_numbering: false
+    toc: true
+  bookdown::pdf_document2:
+    keep_tex: true
+    latex_engine: xelatex
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    toc: false
+  slidy_presentation:
+    highlight: haddock
+  bookdown::word_document2:
+    fig_caption: true
+    md_extensions: +east_asian_line_breaks
+    pandoc_args:
+    - --filter
+    - pandoc-crossref
+    reference_docx: ./style/word-styles-02.docx
+  ioslides_presentation:
+    highlight: haddock
+    slide_level: 3
+  beamer_presentation:
+    keep_tex: true
+    latex_engine: xelatex
+    toc: true
+    pandoc_args:
+    - --listing
+    - --filter
+    - pandoc-crossref
+    slide_level: 3
+    template: ./style/beamer-template.tex
+csl: ./style/chinese-gb7714-2005-numeric.csl
+css: ./style/markdown.css
+bibliography: Bibfile.bib
+eqnPrefixTemplate: ($$i$$)
+institute: 中南财经政法大学统计与数学学院
+link-citations: true
+linkReferences: true
+chapters: true
+tableEqns: false
+autoEqnLabels: false
+---
+
+```{r setup, echo=F, purl=F}
+knitr::opts_knit$set(root.dir = getwd())
+knitr::opts_chunk$set(echo = TRUE, results = 'hide')
+knitr::opts_chunk$set(warning = FALSE, message=FALSE)
+knitr::opts_chunk$set(out.height="0.5\\textwidth", fig.width=5, fig.height=3, fig.align="center")
+```
+
+```{r prepare, echo=F, purl=F}
+rm(list=ls())
+options(digits=4)
+options(scipen=100)
+graphics.off()
+Sys.setlocale("LC_ALL", "Chinese")
+```
+
+# 数据处理及读取
+```{python}
+import pandas as pd
+import numpy as np
+```
+接下来导入数据，本次使用的数据是Github上一个项目里的，也可以直接用pandas包导入，需要注意的是不能直接使用Github那个网址，否则会报错，需要将前面部分改成https://raw.githubusercontent.com/，然后就是加入数据的目录地址。数据主要是是三个文件，包含了疫情的确诊数（confirmed），治愈数（recoved），死亡数（deaths），基本上每日会更新最新疫情数据。以下数据更新至2020年2月28日。
+```{python}
+confirmed = pd.read_csv('./data/time_series_19-covid-Confirmed.csv')
+recovered = pd.read_csv('./data/time_series_19-covid-Recovered.csv')
+deaths = pd.read_csv('./data/time_series_19-covid-Deaths.csv')
+```
+
+```{python}
+print(confirmed.shape)
+print(recovered.shape)
+print(deaths.shape)
+```
+```{python}
+confirmed.head()
+```
+| Province/State | Country/Region |     Lat |     Long | 1/22/20 |  ... | 2/28/20 |
+| -------------: | -------------: | ------: | -------: | ------: | ---: | ------- |
+|          Anhui | Mainland China | 31.8257 | 117.2264 |   1     |  ... |   990   |
+|        Beijing | Mainland China | 40.1824 | 116.4142 |   14    |  ... |   410   |
+|      Chongqing | Mainland China | 30.0572 | 107.8740 |   6     |  ... |   576   |
+|         Fujian | Mainland China | 26.0789 | 117.9874 |   1     |  ... |   296   |
+|          Gansu | Mainland China | 36.0611 | 103.8343 |   0     |  ... |   91    |
+
+```{python}
+recovered.head()
+```
+| Province/State | Country/Region |     Lat |     Long | 1/22/20 |  ... | 2/28/20 |
+| -------------: | -------------: | ------: | -------: | ------: | ---: | ------- |
+|          Anhui | Mainland China | 31.8257 | 117.2264 |    0    |  ... |   821   |
+|        Beijing | Mainland China | 40.1824 | 116.4142 |    0    |  ... |   257   |
+|      Chongqing | Mainland China | 30.0572 | 107.8740 |    0    |  ... |   422   |
+|         Fujian | Mainland China | 26.0789 | 117.9874 |    0    |  ... |   235   |
+|          Gansu | Mainland China | 36.0611 | 103.8343 |    0    |  ... |   82    |
+```{python}
+deaths.head()
+```
+| Province/State | Country/Region |     Lat |     Long | 1/22/20 | ... | 2/28/20 |
+| -------------: | -------------: | ------: | -------: | ------: |---: | ------- |
+|          Anhui | Mainland China | 31.8257 | 117.2264 |    0    | ... |    6    |
+|        Beijing | Mainland China | 40.1824 | 116.4142 |    0    | ... |    7    |
+|      Chongqing | Mainland China | 30.0572 | 107.8740 |    0    | ... |    6    |
+|         Fujian | Mainland China | 26.0789 | 117.9874 |    0    | ... |    1    |
+|          Gansu | Mainland China | 36.0611 | 103.8343 |    0    | ... |    2    |
+
+
+
+# 数据可视化
+## 世界范围
+```{python}
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif']=['SimHei']#用来正常显示中文标签
+plt.rcParams['axes.unicode_minus']=False#用来正常显示负号
+```
+首先看看哪些地区发生了疫区，一共有61个地区都有肺炎疫情。
+```{python}
+countries = confirmed['Country/Region'].unique()
+print(countries)
+print(len(countries))
+```
+接下来看看世界疫情发展趋势，在此之前，需要计算出每日所有地区新冠肺炎的确诊人数，治愈数，死亡数。
+```{python}
+all_confirmed=np.sum(confirmed.iloc[:,4:])
+all_recovered=np.sum(recovered.iloc[:,4:])
+all_deaths=np.sum(deaths.iloc[:,4:])
+all_confirmed.head()
+```
+
+
+接下来就可以画出疫情发展趋势图了。
+```{python}
+import matplotlib.ticker as tkr
+fig = plt.figure(figsize=(18,10))
+ax = fig.add_subplot()
+ax.plot(all_confirmed.values,color='red',label='确诊',marker='o')
+ax.plot(all_recovered.values,color='blue',label='治愈',marker='x')
+ax.plot(all_deaths.values,color='lime',label='死亡',marker='*')
+ax.xaxis.set_major_locator(tkr.MultipleLocator(2.0))
+ax.xaxis.set_minor_locator(tkr.MultipleLocator(1.0))
+## set the str format of major ticker of X axis
+ax.xaxis.set_major_formatter(tkr.FormatStrFormatter('%m/%d/%y'))
+ax.xaxis.set_ticklabels(all_confirmed.index[::2],rotation=45,size=15)
+#all_confirmed.index[::2]#取出奇数位置的元素
+#plt.xticks(rotation=45,size=15)
+plt.yticks([0,10000,20000,30000,40000,50000,60000,70000,80000],size=15)
+plt.xlabel('时间',size=20)
+plt.ylabel('数目',size=20)
+plt.title('全球疫情变化趋势',size=30)
+plt.legend(loc='upper left',fontsize = 20)
+plt.show()
+```
+
+可以看出，目前新冠肺炎确诊病例还在持续增加，不过治愈人数也在持续增长，死亡率很少。
+
+另外确诊人数在2月13日那天有较大幅度的增长。
+
+
+下面看看新冠肺炎的死亡率，首先计算死亡率数据，然后再画图。
+```{python}
+death_rate=(all_deaths/all_confirmed)
+import matplotlib.ticker as tkr
+fig=plt.figure(figsize=(18,10))
+ax=fig.add_subplot()
+ax.plot(death_rate.values,color='black',label='死亡率',marker='o',linewidth=2)
+ax.xaxis.set_major_locator(tkr.MultipleLocator(2.0))
+ax.xaxis.set_minor_locator(tkr.MultipleLocator(1.0))
+## set the str format of major ticker of X axis
+ax.xaxis.set_major_formatter(tkr.FormatStrFormatter('%m/%d/%y'))
+ax.xaxis.set_ticklabels(death_rate.index[::2],rotation=45,size=15)
+#plt.xticks(rotation=45,size=15)
+plt.yticks(size=15)
+plt.xlabel('时间',size=20)
+plt.ylabel('死亡率',size=20)
+plt.title('全球疫情死亡率',size=30)
+plt.show()
+```
+
+## 中国大陆
+
+由于本次疫情主要发生在中国大陆，下面来具体研究下中国大陆的疫情情况.
+
+### 数据提取
+
+首先从全部数据中提取出中国大陆的数据。里面包含了省份，以及每个省最新的确诊数，治愈数，死亡数。
+```{python}
+last_update = '2/28/20' # 设置最新数据日期
+China_cases = confirmed[['Province/State',last_update]][confirmed['Country/Region'] == 'Mainland China']
+China_cases['recovered'] = recovered[[last_update]][recovered['Country/Region'] == 'Mainland China']
+China_cases['deaths']=deaths[[last_update]][deaths['Country/Region']=='Mainland China']
+China_cases = China_cases.set_index('Province/State')
+China_cases = China_cases.rename(columns = {last_update:'confirmed'})
+China_cases.head()
+```
+|Province/State| confirmed | recovered |  deaths  | 
+| -----------: | --------: | --------: | -------: |
+|     Anhui    |    990	   |    821    | 6        | 
+|   Beijing    |    410    |    357    | 7        |
+|    Chongqing |    576    |     422   | 6        | 
+|     Fujian   |    296    |    235    | 1        | 
+|     Gansu    |     91    |    82     | 2        |
+
+### 中国大陆各个省份确诊数，治愈数，死亡数条形图
+
+下面画出中国大陆每个省份的疫情数量图。
+```{python}
+Mainland_China = China_cases.sort_values(by = 'confirmed',ascending = True)
+plt.figure(figsize=(8,25))
+Mainland_China.plot(kind = 'barh',color=['red','blue','lime'],width = 1,rot=2)
+plt.title('中国大陆各省市疫情数量', size=10)
+#rot接受一个整数值，表示用于旋转刻度值的角度。
+plt.ylabel('省/市',size=7)
+plt.xlabel('数量',size=7)
+plt.yticks(size=5)
+plt.xticks(size=8)
+plt.legend(bbox_to_anchor=(0.95,0.95),fontsize=10)
+```
+可以看到，湖北省三项数据高居第一位，且远远高于其他省份。
+
+### 中国大陆治愈率，死亡率折线图
+
+下面看看中国大陆的治愈率和死亡率数据，数据使用下面的代码即可计算出来，最终结果在recovered_rate和deaths_rate里。
+```{python}
+confirmed_China = confirmed[confirmed['Country/Region'] == 'Mainland China'] 
+#得到中国大陆每个省份每日的确诊人数
+confirmed_China = np.sum(confirmed_China.iloc[:,4:])
+#得到中国大陆每日共有的确诊人数
+
+recovered_China = recovered[recovered['Country/Region'] == 'Mainland China']
+#得到中国大陆每个省份每日的治愈人数
+recovered_China = np.sum(recovered_China.iloc[:,4:])
+#得到中国大陆每日共有的治愈人数
+
+deaths_China = deaths[deaths['Country/Region'] == 'Mainland China']
+#得到中国大陆每个省份每日的死亡人数
+deaths_China = np.sum(deaths_China.iloc[:,4:])
+#得到中国大陆每日共有的死亡人数
+
+recovered_rate = (recovered_China/confirmed_China)*100
+deaths_rate = (deaths_China/confirmed_China)*100
+```
+接下来画图，显示中国大陆每日的治愈率和死亡率。
+```{python}
+fig=plt.figure(figsize=(18,10))
+ax=fig.add_subplot()
+ax.plot(recovered_rate.values,color='blue',label='治愈率',marker='o')
+ax.plot(deaths_rate.values,color='lime',label='死亡率',marker='o')
+ax.xaxis.set_major_locator(tkr.MultipleLocator(2.0))
+ax.xaxis.set_minor_locator(tkr.MultipleLocator(1.0))
+## set the str format of major ticker of X axis
+ax.xaxis.set_major_formatter(tkr.FormatStrFormatter('%m/%d/%y'))
+ax.xaxis.set_ticklabels(deaths_rate.index[::2],rotation=45,size=20)
+plt.title('中国大陆治愈率 VS 死亡率',size=30)
+plt.ylabel('数量',size=20)
+plt.xlabel('时间',size=20)
+plt.xticks(rotation=45,size=15)
+plt.yticks(size=20)
+plt.legend(loc = "upper left",fontsize = 20)
+```
+
+
+虽然在1月25日到1月31日期间死亡率略高于治愈率，但其他时间段，治愈率远远高于死亡率。
+
+## 除中国大陆以后世界其他地区
+
+希望能够了解世界地区各国的疫情发展情况。
+
+### 数据提取
+
+首先从全部数据中提取出世界其他地区的数据。里面包含了每个地区最新的确诊数，治愈数，死亡数。
+```{python}
+last_update = '2/28/20' # 设置最新数据日期
+others_cases = confirmed[['Country/Region',last_update]][confirmed['Country/Region'] != 'Mainland China']
+others_cases['recovered'] = recovered[[last_update]][recovered['Country/Region'] != 'Mainland China']
+others_cases['deaths'] = deaths[[last_update]][deaths['Country/Region'] != 'Mainland China']
+others_cases = others_cases.set_index('Country/Region')
+others_cases = others_cases.rename(columns = {last_update:'confirmed'})
+others_countries = others_cases.groupby('Country/Region').sum()
+#数据是按地区给的，需要用分组聚合统计每个国家的疫情数据
+others_countries.head()
+```
+|Country/Region|     Lat   |   long    |  confirmed	| recovered |  deaths  | 
+| -----------: | --------: | --------: | ---------: | --------: |--------: |
+|   Thailand   |  15.0000	 | 101.0000  |   41       |    28     |    0     |
+|     Japan    |  36.0000  | 138.0000  |   228      |    22     |    4     |
+|  South Korea |  36.0000  | 128.0000  |   2337     |    22     |    13    |
+|    Taiwan    |  23.7000  | 121.0000  |   34       |    6      |    1     |
+|     US       |  47.6062	 | -122.3321 |    1       |     1     |    0     |
+
+### 其他国家确诊数，治愈数，死亡数条形图
+
+```{python}
+plt.figure(figsize=(75,25))
+others_countries.sort_values(by = 'confirmed',ascending = True).plot(kind='barh',color=['red','blue','lime'],width = 1,rot=2)
+plt.title('世界其他地区疫情数量', size=10)
+plt.ylabel('Country/Region',size = 7)
+plt.xlabel('数量',size = 7)
+plt.yticks(size=4)
+plt.xticks(size=7)
+plt.legend(bbox_to_anchor=(0.95,0.95),fontsize = 10)
+```
+```{python}
+others_countries['recovered'][others_countries['recovered']==max(others_countries.recovered)]
+```
+others指钻石公主号游轮。
+从图可以看到，韩国，意大利，伊朗，日本这些地区也有很多新冠肺炎患者。
+不过伊朗的治愈人数是除中国以外最多的国家。
+韩国情况最为严重，确诊人数最多，治愈人数却很少。
+
+### 其他国家治愈率，死亡率折线图
+
+```{python}
+confirmed_others = confirmed[confirmed['Country/Region']!= 'Mainland China']
+#世界其他地区每日的确诊人数
+confirmed_others = np.sum(confirmed_others.iloc[:,4:])
+#世界其他地区每日的确诊人数总和
+
+recovered_others = recovered[recovered['Country/Region']!= 'Mainland China']
+#世界其他地区每日的治愈人数
+recovered_others = np.sum(recovered_others.iloc[:,4:])
+#世界其他地区每日的治愈人数总和
+
+deaths_others = deaths[deaths['Country/Region'] != 'Mainland China']
+#世界其他地区每日的死亡人数
+deaths_others = np.sum(deaths_others.iloc[:,4:])
+#世界其他地区每日的死亡人数总和
+
+recover_rate = (recovered_others/confirmed_others)*100
+death_rate = (deaths_others/confirmed_others)*100
+```
+
+```{python}
+fig=plt.figure(figsize=(18,10))
+ax=fig.add_subplot()
+ax.plot(recover_rate.values,color='blue',label='治愈率',marker='o')
+ax.plot(death_rate.values,color='lime',label='死亡率',marker='o')
+ax.xaxis.set_major_locator(tkr.MultipleLocator(2.0))
+ax.xaxis.set_minor_locator(tkr.MultipleLocator(1.0))
+## set the str format of major ticker of X axis
+ax.xaxis.set_major_formatter(tkr.FormatStrFormatter('%m/%d/%y'))
+ax.xaxis.set_ticklabels(death_rate.index[::2],rotation=45,size=15)
+plt.title('世界其他地区治愈率 VS 死亡率',size=30)
+plt.ylabel('数量',size=20)
+plt.xlabel('时间',size=20)
+plt.yticks(size=15)
+plt.legend(loc = "upper left",fontsize = 20)
+```
+中国大陆的治愈率超过世界其他地区
+
+# 绘制疫情地图
+
+这里主要用到两个python包，一个是folium包，这个包也是笔者最近才发现的绘图包，类似于R语言绘图里的ggplot2，可以添加图层来定义一个Map对象，最后以几种方式将Map对象展现出来。这里有一个详细教程，感兴趣的可以看看https://python-visualization.github.io/folium/。另一个包就是plotly了，这也是一个强大的绘图包，详细教程请看这里https://plot.ly/python/plotly-express/。
+
+## folium包绘制地图
+
+首先是folium包绘制地图，导入folium，只需要导入包就可以了，没下载这个包的记得下载才能使用。我们在前面数据里加入中国大陆的数据，并使用武汉的经纬度。
+
+```{python}
+import folium
+others = confirmed[['Country/Region','Lat','Long',last_update]][confirmed['Country/Region'] != 'Mainland China']
+others['recovered'] = recovered[[last_update]][recovered['Country/Region'] != 'Mainland China']
+others['death'] = deaths[[last_update]][deaths['Country/Region'] != 'Mainland China']
+others_countries = others.rename(columns = {last_update:'confirmed'})
+others_countries.loc['94'] = ['Mainland China',30.9756,112.2707,confirmed_China[-1],recovered_China[-1],deaths_China[-1]]
+#confirmed_China[-1]是中国大陆2月28日的确诊人数,把巴基斯坦的数据更换为中国大陆数
+#据。
+#others_countries.head().to_csv('./results/other_countries.csv')
+```
+```{r tab1, eval=T,results='markup', cache=F}
+library("kableExtra")
+library('utils')
+tab1 = read.csv('./results/other_countries.csv')
+knitr::kable(tab1, row.names =F, align = "l", caption="各个国家疫情发展情况",
+             longtable = TRUE, booktabs = TRUE, linesep  = "")
+			 
+```
+然后开始正式构建地图
+```{python}
+world_map = folium.Map(location=[10, -20], zoom_start=2.3,tiles='Stamen Toner')
+```
+上面一行是定义一个world_map对象；location的格式为[纬度,经度]；zoom_start表示初始地图的缩放尺寸，数值越大放大程度越大；tiles为地图类型，用于控制绘图调用的地图样式，默认为'OpenStreetMap'，也有一些其他的内建地图样式，如'Stamen  Terrain'、'Stamen Toner'、'Mapbox Bright'、'Mapbox Control Room'等；也可以传入'None'来绘制一个没有风格的朴素地图，或传入一个URL来使用其它的自选osm。
+
+然后往world_map里添加其他元素，注意这里的for循环和最后的add_to是把经纬度点的信息一个一个的加进去
+```{python}
+for lat, lon, value, name in zip(others_countries['Lat'], others_countries['Long'], others_countries['confirmed'], others_countries['Country/Region']):
+    folium.CircleMarker([lat, lon],
+                            radius=10,
+                            popup = ('<strong>Country</strong>: ' + str(name).capitalize() + '<br>'                                
+                            '<strong>Confirmed Cases</strong>: ' + str(value) + '<br>'),                        
+                            color='red',                                                
+                            fill_color='red',                        
+                            fill_opacity=0.3 ).add_to(world_map)
+                    
+world_map
+#world_map.save('./results/world_map.html')
+import webbrowser
+webbrowser.open('world_map.html')
+```
+```{r fig2,eval=T, echo=F,fig.cap="全球疫情分布图",dev="png",results='markup', cache=F}
+knitr::include_graphics("./results/fol.png")
+```
+
+这里主要说下popup参数
+popup：str型或folium.Popup()对象输入，用于控制标记部件的具体样式（folium内部自建了许多样式），默认为None，即不显示部件。代码使用的是自定义的网页样式，其中<strong>表示加粗，<br>表示换行，以便将各个数据显示出来。
+
+然后再运行world_map，即可出现下面的地图样式，这是一种可交互的地图，可以随意移动缩放，鼠标点击地图上红点，即可出现地区的疫情信息。
+
+## 用plotly绘制每日疫情扩散地图。
+```{python}
+import plotly.express as px
+```
+
+如果想绘制每日疫情扩散地图，还需要增加一列，里面记录了每天的日期，因此我们的数据还需要再重新整理下，这里需要用的melt函数，它将列名转换为列数据(columns name → column values)，重构DataFrame，
+```{python}
+confirmed = confirmed.melt(id_vars = ['Province/State','Country/Region','Lat', 'Long'],var_name='date',value_name = 'confirmed')
+```
+
+主要参数说明
+id_vars:不需要被转换的列名。
+value_vars:需要转换的列名，如果剩下的列全部都要转换，就不用写了。
+var_name和value_name是自定义设置对应的列名。
+
+还需要把date列转换成datetime格式的数据
+```{python}
+confirmed['date_dt'] = pd.to_datetime(confirmed.date, format="%m/%d/%y")
+confirmed.date = confirmed.date_dt.dt.date
+confirmed.rename(columns={'Country/Region': 'country', 'Province/State': 'province'}, inplace=True)
+#confirmed_part=confirmed.head().to_csv('./results/confirmed_part.csv')
+```
+
+```{r tab2, eval=T,results='markup', cache=F}
+library("kableExtra")
+library('utils')
+tab2 = read.csv('./results/confirmed_part.csv')
+knitr::kable(tab2, row.names =F, align = "l", caption="各个地区疫情确诊情况",
+             longtable = TRUE, booktabs = TRUE, linesep  = "")
+```
+同时整理出治愈数据和死亡数据
+```{python}
+recovered = recovered.melt(id_vars = ['Province/State', 'Country/Region', 'Lat', 'Long'], var_name='date',value_name = 'recovered')
+recovered['date_dt'] = pd.to_datetime(recovered.date, format="%m/%d/%y")
+recovered.date = recovered.date_dt.dt.date
+recovered.rename(columns={'Country/Region': 'country', 'Province/State': 'province'}, inplace=True)
+#recovered_part=recovered.head().to_csv('./results/recovered_part.csv')
+
+deaths = deaths.melt(id_vars = ['Province/State', 'Country/Region', 'Lat', 'Long'], var_name='date', value_name = 'deaths')
+deaths['date_dt'] = pd.to_datetime(deaths.date, format="%m/%d/%y")
+deaths.date = deaths.date_dt.dt.date
+deaths.rename(columns={'Country/Region': 'country', 'Province/State': 'province'}, inplace=True)
+#deaths_part=deaths.head().to_csv('./results/deaths_part.csv')
+```
+```{r tab3, eval=T,results='markup', cache=F}
+library("kableExtra")
+library('utils')
+tab3 = read.csv('./results/recovered_part.csv')
+knitr::kable(tab3, row.names =F, align = "l", caption="各个地区疫情治愈情况",
+             longtable = TRUE, booktabs = TRUE, linesep  = "")
+```
+
+```{r tab4, eval=T,results='markup', cache=F}
+library("kableExtra")
+library('utils')
+tab4 = read.csv('./results/deaths_part.csv')
+knitr::kable(tab4, row.names =F, align = "l", caption="各个地区疫情死亡情况",
+             longtable = TRUE, booktabs = TRUE, linesep  = "")
+```
+
+现在三种数据都有了，我们把它们合并在一张表里面，主要用到merge函数
+```{python}
+merge_on = ['province', 'country', 'date']
+all_data = confirmed.merge(deaths[merge_on + ['deaths']], how='left', on=merge_on).merge(recovered[merge_on + ['recovered']], how='left', on=merge_on)
+                        
+all_data.head()
+confirmed.shape,recovered.shape,deaths.shape
+```
+
+
+由于要演示的是疫情扩散地图，因此笔者用实心圆来表示每个地区的疫情变化，而实心圆的大小则代表了三种数据的大小，所以在我们的数据里要加一列，使用confirmed数据的二分之一次方来表示实心圆的大小。
+```{python}
+Coronavirus_map = all_data.groupby(['date_dt', 'province'])['confirmed', 'deaths','recovered', 'Lat', 'Long'].max().reset_index()
+Coronavirus_map['size'] = Coronavirus_map.confirmed.pow(0.5)  # 创建实心圆大小
+Coronavirus_map['date_dt'] = Coronavirus_map['date_dt'].dt.strftime('%Y-%m-%d')
+#Coronavirus_map_part=Coronavirus_map.head().to_csv('./results/Coronavirus_map_part.csv')
+
+```{r tab5, eval=T,results='markup', cache=F}
+library("kableExtra")
+library('utils')
+tab4 = read.csv('./results/Coronavirus_map_part.csv')
+knitr::kable(tab4, row.names =F, align = "l", caption="各个地区疫情发展情况",
+             longtable = TRUE, booktabs = TRUE, linesep  = "")%>%
+             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")
+```
+
+最后就是绘图部分，代码也很简单，如果有不懂得参数可以使用help(px.scatter_geo)来查看每个参数用法
+```{python}
+fig = px.scatter_geo(Coronavirus_map, lat='Lat', lon='Long', scope='asia',
+                     color="size", size='size', hover_name='province',
+                     hover_data=['confirmed', 'deaths', 'recovered'],
+                     projection="natural earth",animation_frame="date_dt",title='亚洲地区疫情扩散图')
+fig.update(layout_coloraxis_showscale=False)
+fig.show()
+```
+
+```{r fig1,eval=T, echo=F,fig.cap="亚洲地区疫情扩散图",dev="png",results='markup', cache=F}
+knitr::include_graphics("./results/px.png")
+```
