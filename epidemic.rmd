@@ -63,7 +63,7 @@ autoEqnLabels: false
 knitr::opts_knit$set(root.dir = getwd())
 knitr::opts_chunk$set(results = 'hide',eval=T)
 knitr::opts_chunk$set(warning = FALSE, message=FALSE)
-knitr::opts_chunk$set(out.height="0.5\\textwidth", fig.width=5, fig.height=3, fig.align="center")
+knitr::opts_chunk$set(out.height="0.5\\textwidth", fig.width=6, fig.height=3, fig.align="center")
 ```
 
 ```{r prepare, echo=F, purl=F}
@@ -153,7 +153,6 @@ all_deaths=np.sum(deaths.iloc[:,4:])
 all_confirmed.head()
 ```
 
-
 接下来就可以画出疫情发展趋势图了。
 ```{python fig1,eval=T,fig.cap='全球疫情变化趋势',dev="pdf"}
 import matplotlib.ticker as tkr
@@ -175,7 +174,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-可以看出，目前新冠肺炎确诊病例还在持续增加，不过治愈人数也在持续增长，死亡率很少。
+从 \@ref(fig:fig1) 可以看出，目前新冠肺炎确诊病例还在持续增加，不过治愈人数也在持续增长，死亡率很少。
 
 另外确诊人数在2月13日那天有较大幅度的增长。
 
@@ -239,17 +238,7 @@ plt.legend(bbox_to_anchor=(0.95,0.95),fontsize = 30)
 plt.tight_layout()
 plt.show()
 ```
-
-```{python fig4,eval=F,fig.cap='湖北省疫情数量',dev="pdf",out.height='20%',out.width='95%'}
-#fig=plt.figure()
-#ax=plt.subplot()
-Mainland_China[Mainland_China.index=='Hubei'].plot(kind = 'barh',color=['red','blue','lime'])#,ax=ax)
-plt.xlabel=('数量')
-plt.ylabel=('湖北')
-plt.tight_layout()
-plt.show()
-```
-可以看到，湖北省三项数据高居第一位，且远远高于其他省份。
+图\@ref(fig:fig3)显示，湖北省三项数据高居第一位，且远远高于其他省份。
 
 ### 中国大陆治愈率，死亡率折线图
 
@@ -291,8 +280,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-
-虽然在1月25日到1月31日期间死亡率略高于治愈率，但其他时间段，治愈率远远高于死亡率。
+图\@ref(fig:fig5)显示虽然在1月25日到1月31日期间死亡率略高于治愈率，但其他时间段，治愈率远远高于死亡率。
 
 ## 除中国大陆以后世界其他地区
 
@@ -377,7 +365,7 @@ plt.legend(loc = "upper left",fontsize = 10)
 plt.tight_layout()
 plt.show()
 ```
-中国大陆的治愈率超过世界其他地区
+如图\@ref(fig:fig8)所示，中国大陆的治愈率超过世界其他地区
 
 # 绘制疫情地图
 
@@ -393,24 +381,27 @@ others = confirmed[['Country/Region','Lat','Long',last_update]][confirmed['Count
 others['recovered'] = recovered[[last_update]][recovered['Country/Region'] != 'Mainland China']
 others['death'] = deaths[[last_update]][deaths['Country/Region'] != 'Mainland China']
 others_countries = others.rename(columns = {last_update:'confirmed'})
-others_countries.loc['94'] = ['Mainland China',30.9756,112.2707,confirmed_China[-1],recovered_China[-1],deaths_China[-1]]
+others_countries.loc['145'] = ['Mainland China',30.9756,112.2707,confirmed_China[-1],recovered_China[-1],deaths_China[-1]]
 #confirmed_China[-1]是中国大陆2月28日的确诊人数,把巴基斯坦的数据更换为中国大陆数
 #据。
-#others_countries.head().to_csv('./results/other_countries.csv')
+#others_countries.to_csv('./results/othercountries.csv',index_label=False)
 ```
+
 
 ```{r tab1,results='markup', cache=F,echo=F}
 library("kableExtra")
 library('utils')
-tab1 = read.csv('./results/other_countries.csv')
-knitr::kable(tab1, row.names =F, align = "l", caption="各个国家疫情发展情况",
+tab1 = read.csv('./results/othercountries.csv')
+knitr::kable(tab1[1:10,], row.names =F, align = c("l",rep('c',5)), caption="各个国家疫情发展情况",
              longtable = TRUE, booktabs = TRUE, linesep  = "")%>%
-             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")
+             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")%>%
+             kable_styling(full_width = T) %>%
+             column_spec(1, width = c("2.5cm"))
 			 
 ```
 然后开始正式构建地图
 ```{python}
-world_map = folium.Map(location=[10, -20], zoom_start=2.3,tiles='Stamen Toner')
+world_map = folium.Map(location=[10, -20], zoom_start=2.3,tiles='Stamen Terrain')
 ```
 上面一行是定义一个world_map对象；location的格式为[纬度,经度]；zoom_start表示初始地图的缩放尺寸，数值越大放大程度越大；tiles为地图类型，用于控制绘图调用的地图样式，默认为'OpenStreetMap'，也有一些其他的内建地图样式，如'Stamen  Terrain'、'Stamen Toner'、'Mapbox Bright'、'Mapbox Control Room'等；也可以传入'None'来绘制一个没有风格的朴素地图，或传入一个URL来使用其它的自选osm。
 
@@ -426,14 +417,15 @@ for lat, lon, value, name in zip(others_countries['Lat'], others_countries['Long
                             fill_opacity=0.3 ).add_to(world_map)
                     
 world_map
-#world_map.save('./results/world_map.html')
-#import webbrowser
-#webbrowser.open('world_map.html')
+world_map.save('./results/world_map.html')
+import webbrowser
+webbrowser.open('world_map.html')
 ```
 
-```{r fig10,eval=T,echo=F,fig.cap="全球疫情分布图",dev="png",results='markup'}
+```{r fig10,eval=T,echo=F,fig.cap="全球疫情分布图",dev="png",results='markup',fig.width=6}
 knitr::include_graphics("./results/fol.png")
 ```
+图\@ref(fig:fig10)显示的是全球疫情分布图。
 
 这里主要说下popup参数
 popup：str型或folium.Popup()对象输入，用于控制标记部件的具体样式（folium内部自建了许多样式），默认为None，即不显示部件。代码使用的是自定义的网页样式，其中<strong>表示加粗，<br>表示换行，以便将各个数据显示出来。
@@ -450,7 +442,6 @@ import plotly.express as px
 ```{python}
 confirmed = confirmed.melt(id_vars = ['Province/State','Country/Region','Lat', 'Long'],var_name='date',value_name = 'confirmed')
 ```
-
 主要参数说明
 id_vars:不需要被转换的列名。
 value_vars:需要转换的列名，如果剩下的列全部都要转换，就不用写了。
@@ -461,16 +452,18 @@ var_name和value_name是自定义设置对应的列名。
 confirmed['date_dt'] = pd.to_datetime(confirmed.date, format="%m/%d/%y")
 confirmed.date = confirmed.date_dt.dt.date
 confirmed.rename(columns={'Country/Region': 'country', 'Province/State': 'province'}, inplace=True)
-#confirmed_part=confirmed.head().to_csv('./results/confirmed_part.csv')
+#confirmed=confirmed.to_csv('./results/confirmed.csv',index_label=False)
 ```
 
 ```{r tab2,results='markup',echo=F}
 library("kableExtra")
 library('utils')
-tab2 = read.csv('./results/confirmed_part.csv')
-knitr::kable(tab2, row.names =F, align = "l", caption="各个地区疫情确诊情况",
+tab2 = read.csv('./results/confirmed.csv')
+knitr::kable(tab2[1:10,], row.names =F, align = c("l",rep('c',6)), caption="各个地区疫情确诊情况",
              longtable = TRUE, booktabs = TRUE, linesep  = "")%>%
-             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")
+             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")%>%
+             kable_styling(full_width = T) %>%
+             column_spec(1, width = c("2.5cm"))
 ```
 同时整理出治愈数据和死亡数据
 ```{python}
@@ -478,37 +471,39 @@ recovered = recovered.melt(id_vars = ['Province/State', 'Country/Region', 'Lat',
 recovered['date_dt'] = pd.to_datetime(recovered.date, format="%m/%d/%y")
 recovered.date = recovered.date_dt.dt.date
 recovered.rename(columns={'Country/Region': 'country', 'Province/State': 'province'}, inplace=True)
-#recovered_part=recovered.head().to_csv('./results/recovered_part.csv')
-
+#recovered=recovered.to_csv('./results/recovered.csv',index_label=False)
 deaths = deaths.melt(id_vars = ['Province/State', 'Country/Region', 'Lat', 'Long'], var_name='date', value_name = 'deaths')
 deaths['date_dt'] = pd.to_datetime(deaths.date, format="%m/%d/%y")
 deaths.date = deaths.date_dt.dt.date
 deaths.rename(columns={'Country/Region': 'country', 'Province/State': 'province'}, inplace=True)
-#deaths_part=deaths.head().to_csv('./results/deaths_part.csv')
+#deaths=deaths.to_csv('./results/deaths.csv',index_label=False)
 ```
 ```{r tab3, eval=T,results='markup', cache=F,echo=F}
 library("kableExtra")
 library('utils')
-tab3 = read.csv('./results/recovered_part.csv')
-knitr::kable(tab3, row.names =F, align = c(rep("l",5),"c","l"), caption="各个地区疫情治愈情况",
+tab3 = read.csv('./results/recovered.csv')
+knitr::kable(tab3[1:10,], row.names =F, align = c("l",rep('c',6)), caption="各个地区疫情治愈情况",
              longtable = TRUE, booktabs = TRUE, linesep  = "")%>%
-             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")
+             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")%>%
+             kable_styling(full_width = T) %>%
+             column_spec(1, width = c("2.5cm"))
 ```
 
 ```{r tab4, eval=T,results='markup', cache=F,echo=F}
 library("kableExtra")
 library('utils')
-tab4 = read.csv('./results/deaths_part.csv')
-knitr::kable(tab4, row.names =F, align = c(rep("l",5),"c","l"), caption="各个地区疫情死亡情况",
-             longtable = TRUE, booktabs = TRUE, linesep  = "")
+tab4 = read.csv('./results/deaths.csv')
+knitr::kable(tab4[1:10,],row.names =F, align = c("l",rep('c',6)), caption="各个地区疫情死亡情况",
+             longtable = TRUE, booktabs = TRUE, linesep  = "")%>%
+             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")%>%
+             kable_styling(full_width = T) %>%
+             column_spec(1, width = c("2.5cm"))
 ```
 
 现在三种数据都有了，我们把它们合并在一张表里面，主要用到merge函数
 ```{python}
 merge_on = ['province', 'country', 'date']
 all_data = confirmed.merge(deaths[merge_on + ['deaths']], how='left', on=merge_on).merge(recovered[merge_on + ['recovered']], how='left', on=merge_on)
-                        
-all_data.head()
 confirmed.shape,recovered.shape,deaths.shape
 ```
 
@@ -518,15 +513,20 @@ confirmed.shape,recovered.shape,deaths.shape
 Coronavirus_map = all_data.groupby(['date_dt', 'province'])['confirmed', 'deaths','recovered', 'Lat', 'Long'].max().reset_index()
 Coronavirus_map['size'] = Coronavirus_map.confirmed.pow(0.5)  # 创建实心圆大小
 Coronavirus_map['date_dt'] = Coronavirus_map['date_dt'].dt.strftime('%Y-%m-%d')
-#Coronavirus_map_part=Coronavirus_map.head().to_csv('./results/Coronavirus_map_part.csv')
+#Coronavirusmap=Coronavirus_map.to_csv('./results/Coronavirusmap.csv',index_label=False)
 
-```{r tab5, eval=T,results='markup', cache=F,echo=F}
+```{r tab5, eval=F,results='markup', cache=F,echo=F}
 library("kableExtra")
 library('utils')
-tab4 = read.csv('./results/Coronavirus_map_part.csv')
-knitr::kable(tab4, row.names =F, align = "l", caption="各个地区疫情发展情况",
+tab5 = read.csv('./results/Coronavirusmap.csv')
+#booktabs = TRUE表示生成三线表
+#longtable = TRUE表示续页
+knitr::kable(tab5[1:10,],row.names =F,align = c("l",rep('c',7)), caption="各个地区疫情发展情况",
              longtable = TRUE, booktabs = TRUE, linesep  = "")%>%
-             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")
+             kable_styling(latex_options = c("striped", "scale_down", "repeat_header", "hold_position"),repeat_header_text = "(续)")%>%
+             kable_styling(full_width = T) %>%
+             column_spec(1:8, width = c('1.5cm','2cm','1.2cm','1cm','1.1cm',rep('1cm',3)))
+
 ```
 
 最后就是绘图部分，代码也很简单，如果有不懂得参数可以使用help(px.scatter_geo)来查看每个参数用法
@@ -542,3 +542,4 @@ fig.update(layout_coloraxis_showscale=False)
 ```{r fig11,eval=T,results = 'hide', echo=F,fig.cap="亚洲地区疫情扩散图",dev="png",results='markup', cache=F}
 knitr::include_graphics("./results/px.png")
 ```
+图\@ref(fig:fig11)显示的是亚洲地区疫情扩散图。
