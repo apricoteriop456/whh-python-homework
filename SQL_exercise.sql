@@ -78,10 +78,9 @@ select a.film_id,a.title,a.length,b.title,b.length from film a,film b where a.le
 select a.film_id,a.title,a.length,b.length,b.title from film a inner join film b on a.film_id <> b.film_id and a.length = b.length order by a.film_id;
 
 /*查询客户ID 2的客户租赁数据（完整外连接）*/
-select * from customer a inner JOIN rental b ON a.customer_id = b.customer_id where a.customer_id = 2 limit 5;
-SELECT a.customer_id, a.email, b.amount, b.payment_date FROM customer a inner JOIN payment b ON a.customer_id = b.customer_id WHERE a.customer_id = 2;
+select * from customer a full outer join rental b ON a.customer_id = b.customer_id where a.customer_id = 2;
 /*查询客户ID 2的客户租赁数据（完全外连接,,不包括a,b的交集部分）*/
-select * from customer a OUTER JOIN rental b ON a.customer_id = b.customer_id where a.customer_id = 2 limit 5;
+select * from customer a full OUTER JOIN rental b ON a.customer_id = b.customer_id where a.customer_id = 2 and (a.customer_id is null or b.customer_id is null);
 
 CREATE TABLE T1 (label CHAR(1) PRIMARY KEY);
 CREATE TABLE T2 (score INT PRIMARY KEY);
@@ -215,7 +214,7 @@ select * from pg_tables where tablename='flag';
 --使用on commit drop选项创建的临时表，一旦创建它的事务结束(运行COMMIT)，临时表和其中的数据也就消失了
 
 /*删除表中所有数据*/
-delete  from oridata;
+delete from oridata;
 
 -- *************第九部分 约束*************
 
