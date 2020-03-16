@@ -1,18 +1,18 @@
 -- 10.1 Join table PEOPLE and ADDRESS, but keep only one address information for each person (we don't mind which record we take for each person). 
     -- i.e., the joined table should have the same number of rows as table PEOPLE
-alter table address alter column updatedate type varchar;
-select * into temp from  
-(select *,row_number() over (PARTITION by id order by address)  as row from address) as a 
-where a.row=1;
+ALTER TABLE address ALTER column updatedate type varchar;
+SELECT * INTO temp FROM  
+(SELECT *,row_number() over (PARTITION BY id ORDER BY address)  AS row FROM address) AS a 
+WHERE a.row=1;
 
-select * 
-from temp right join PEOPLE on temp.id=PEOPLE.id;
-
+SELECT * 
+FROM temp RIGHT JOIN people ON temp.id=people.id;
+ 
 -- 10.2 Join table PEOPLE and ADDRESS, but ONLY keep the LATEST address information for each person. 
     -- i.e., the joined table should have the same number of rows as table PEOPLE
-select * into temp1 from  
-(select *,row_number() over (PARTITION by id order by updatedate desc) as row from address) as a 
-where a.row=1;
+SELECT * INTO temp1 FROM  
+(SELECT *,row_number() over (PARTITION BY id ORDER BY updatedate desc) AS row FROM address) AS a 
+WHERE a.row=1;
 
-select * 
-from temp1 right join PEOPLE on temp1.id=PEOPLE.id;
+SELECT * 
+FROM temp1 RIGHT JOIN PEOPLE ON temp1.id=PEOPLE.id;
