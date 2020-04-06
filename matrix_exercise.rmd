@@ -201,6 +201,9 @@ sum(B*A[:,1])#表示第一行与A的第二列的乘积的和
 
 ## 矩阵相乘
 ```{python}
+A=np.arange(1,13).reshape((3,4))
+B=np.arange(0,12).reshape((3,4))
+C=np.arange(1,13).reshape((4,3))
 A_m=np.matrix(A)
 B_m=np.matrix(B)
 C_m=np.matrix(C)
@@ -269,6 +272,44 @@ print('特征向量构成的矩阵是: \n',e)
 np.matmul(e,np.matmul(np.diag(m),e.T))
 np.matrix(e)*np.diag(m)*np.matrix(e.T)
 ```
+1. A，B分别是是(p,q)和(q,p)矩阵，AB和BA有相同的非零特征根。
+```{python}
+np.random.seed(10)
+A=np.random.randint(1,10,size=(5,3))
+B=np.random.randint(1,10,size=(3,5))
+values1,vectors1=np.linalg.eig(A.dot(B))
+values2,vectors2=np.linalg.eig(B.dot(A))
+print(values1)
+print(values2)
+sum(matrix[:,0]**2)
+#特征向量的各元素之和是1，即特征向量是单位向量。
+```
+2. 实对称矩阵的特征根均为实数，不同特征跟对应的特征向量正交。
+```{python}
+A=np.linalg.eig(B.dot(B))
+#快速获得实对称矩阵
+values,vectors=np.linalg.eig(A)
+np.dot(vectors,vectors.T)
+#根据实对称矩阵不同特征根的特征向量正交且特征向量为单位矩阵可以快速获得正交矩阵。
+```
+3. 矩阵的迹等于特征根的和，也等于矩阵对角元素的和
+```{python}
+np.linalg.trace(A)
+sum(np.linalg.eig(A)[0])
+sum(np.diag(A))
+```
+4. 矩阵的行列式等于特征根的乘积
+```{python}
+np.linalg.det(A)
+np.prod(np.linalg.eig(A)[0])
+```
+5. 
+```{python}
+B=np.random.rand(3,5)
+A=B.dot(B.T)
+np.linalg.det(A)
+```
+
 # 矩阵的Choleskey分解
 Cholesky 分解是把一个对称正定的矩阵表示成一个下三角矩阵L和其转置的乘积的分解。
 Cholesky分解法又称平方根法，即：A=Pt(P)，其中P为下三角矩阵，在python中可以用进行np.linalg.cholesky()分解，例如:
@@ -285,7 +326,8 @@ np.linalg.det(A)
 ```
 
 # 矩阵奇异值分解
-A为m×n矩阵，rank(A)= r, 可以分解为：$A=UDV^T$,其中(U^T)U=(V^T)V=I
+
+A为m×n矩阵，rank(A)= r, 可以分解为：$A=UDV^T$,其中 $(U^T)U=(V^T)V=I$
 在python中可以进行奇异值分解，例如:
 ```{python}
 A=np.arange(1,19).reshape((3,6))
@@ -298,7 +340,7 @@ np.dot(vh,vh.T)
 ```
 
 # 矩阵QR分解
-A为m×n矩阵可以进行QR分解，A=QR，其中：$Q^TQ＝I$，在python中可以用函数qr()进行QR分解，例如:
+A为m×n矩阵可以进行QR分解，A=QR，其中：$Q^TQ = I$，在python中可以用函数qr()进行QR分解，例如:
 ```{python}
 A=np.arange(1,17).reshape((2,8))
 q,r=np.linalg.qr(A)
